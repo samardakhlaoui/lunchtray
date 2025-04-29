@@ -33,6 +33,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
+import androidx.compose.ui.Modifier
+import androidx.compose.material3.TopAppBar
+
+
 
 
 
@@ -67,22 +72,19 @@ fun LunchTrayAppBar(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LunchTrayApp() {
-    val navController: NavHostController = rememberNavController()
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentScreen = LunchTrayScreen.valueOf(
+        backStackEntry?.destination?.route ?: LunchTrayScreen.Start.name
+    )
     val viewModel: OrderViewModel = viewModel()
-
-    val currentScreen = navController.currentBackStackEntryFlow.collectAsState(
-        initial = navController.currentBackStackEntry
-    ).value?.destination?.route?.let {
-        LunchTrayScreen.valueOf(it)
-    } ?: LunchTrayScreen.Start
 
     Scaffold(
         topBar = {
             LunchTrayAppBar(
-                currentScreen = currentScreen,
+                currentScreenTitle = currentScreen.title,
                 canNavigateBack = navController.previousBackStackEntry != null,
                 navigateUp = { navController.navigateUp() }
             )
@@ -91,55 +93,93 @@ fun LunchTrayApp() {
         val uiState by viewModel.uiState.collectAsState()
 
         NavHost(
-    navController = navController,
-    startDestination = LunchTrayScreen.Start.name,
-    modifier = Modifier.padding(innerPadding)
-) {
-    composable(LunchTrayScreen.Start.name) {
-        StartOrderScreen(
-            onNext = { navController.navigate(LunchTrayScreen.Entree.name) }
-        )
-    }
-    composable(LunchTrayScreen.Entree.name) {
-        EntreeMenuScreen(
-            onNext = { navController.navigate(LunchTrayScreen.SideDish.name) },
-            onCancel = {
-                viewModel.resetOrder()
-                navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
+            navController = navController,
+            startDestination = LunchTrayScreen.Start.name,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(route = LunchTrayScreen.Start.name) {
+                StartOrderScreen(
+                    onStartOrderButtonClicked = {
+                        navController.navigate(LunchTrayScreen.Entree.name)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                )
             }
-        )
-    }
-    composable(LunchTrayScreen.SideDish.name) {
-        SideDishMenuScreen(
-            onNext = { navController.navigate(LunchTrayScreen.Accompaniment.name) },
-            onCancel = {
-                viewModel.resetOrder()
-                navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
-            }
-        )
-    }
-    composable(LunchTrayScreen.Accompaniment.name) {
-        AccompanimentMenuScreen(
-            onNext = { navController.navigate(LunchTrayScreen.Checkout.name) },
-            onCancel = {
-                viewModel.resetOrder()
-                navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
-            }
-        )
-    }
-    composable(LunchTrayScreen.Checkout.name) {
-        CheckoutScreen(
-            onSubmit = {
-                viewModel.resetOrder()
-                navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
-            },
-            onCancel = {
-                viewModel.resetOrder()
-                navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
-            }
-        )
-    }
-}
 
+            composable(route = LunchTrayScreen.Entree.name) {
+                EntreeMenuScreen(
+                    options = DataSource.entreeMenuItems,
+                    onCancelButtonClicked = {
+                        viewModel.resetOrder()
+                        navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
+                    },
+                    onNextButtonClicked = {
+                        navController.navigate(LunchTrayScreen.SideDish.name)
+                    },
+                    onSelectionChanged = { item ->
+                        viewModel.updateEntree(item)
+                    },
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                )
+            }
+
+            composable(route = LunchTrayScreen.SideDish.name) {
+                SideDishMenuScreen(
+                    options = DataSource.sideDishMenuItems,
+                    onCancelButtonClicked = {
+                        viewModel.resetOrder()
+                        navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
+                    },
+                    onNextButtonClicked = {
+                        navController.navigate(LunchTrayScreen.Accompaniment.name)
+                    },
+                    onSelectionChanged = { item ->
+                        viewModel.updateSideDish(item)
+                    },
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                )
+            }
+
+            composable(route = LunchTrayScreen.Accompaniment.name) {
+                AccompanimentMenuScreen(
+                    options = DataSource.accompanimentMenuItems,
+                    onCancelButtonClicked = {
+                        viewModel.resetOrder()
+                        navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
+                    },
+                    onNextButtonClicked = {
+                        navController.navigate(LunchTrayScreen.Checkout.name)
+                    },
+                    onSelectionChanged = { item ->
+                        viewModel.updateAccompaniment(item)
+                    },
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                )
+            }
+
+            composable(route = LunchTrayScreen.Checkout.name) {
+                CheckoutScreen(
+                    orderUiState = uiState,
+                    onCancelButtonClicked = {
+                        viewModel.resetOrder()
+                        navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
+                    },
+                    onNextButtonClicked = {
+                        viewModel.resetOrder()
+                        navController.popBackStack(LunchTrayScreen.Start.name, inclusive = false)
+                    },
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .padding(
+                            start = dimensionResource(R.dimen.padding_medium),
+                            end = dimensionResource(R.dimen.padding_medium),
+                        )
+                )
+            }
+        }
     }
 }
